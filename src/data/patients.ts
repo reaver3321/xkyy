@@ -39,13 +39,33 @@ interface RawPatientRecord {
   tags: string[];
 }
 
+const PDF_TEXT_REPLACEMENTS: ReadonlyArray<readonly [string, string]> = [
+  [
+    '\u60a3\u8005\u5fc3\u7535\u56fe\u68c0\u67e5\u7ed3\u679c\u6b63\u5e38\uff08\u65e0ST\u6539\u53d8\uff09',
+    '\u60a3\u8005\u5fc3\u7535\u56fe\u68c0\u67e5\u7ed3\u679c\u6b63\u5e38\uff08\u65e0ST\u6539\u53d8 ~ \u5b58\u5728\u63a8\u7406\u53ef\u80fd\uff0c\u9700\u8981\u4eba\u5de5\u5224\u65ad\uff09',
+  ],
+  [
+    '\u5fc3\u7535\u56fe\u6b63\u5e38\uff08\u65e0ST\u6539\u53d8\uff09',
+    '\u5fc3\u7535\u56fe\u6b63\u5e38',
+  ],
+];
+
+function normalizeClinicalText(value: string) {
+  return PDF_TEXT_REPLACEMENTS.reduce(
+    (normalizedValue, [searchValue, replacementValue]) => normalizedValue.replaceAll(searchValue, replacementValue),
+    value,
+  );
+}
+
 function cleanPdfText(value: string | undefined) {
-  return (value ?? '')
-    .replace(/\*\*/g, '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\n+/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
+  return normalizeClinicalText(
+    (value ?? '')
+      .replace(/\*\*/g, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .trim(),
+  );
 }
 
 function createBedSlug(bed: string) {

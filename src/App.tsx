@@ -3,14 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GlobalHeader } from './components/GlobalHeader';
+import React, { useEffect, useRef, useState } from 'react';
 import { AIWardRound } from './components/AIWardRound';
 import { ClinicalDecision } from './components/ClinicalDecision';
+import { GlobalHeader } from './components/GlobalHeader';
+import { InsightsViewer } from './components/InsightsViewer';
 import { PatientSidebar } from './components/PatientSidebar';
 import { patientsData } from './data/patients';
 
+type SidebarView = 'patients' | 'insights';
+
+const insightsReportSrc = '/reports/ai-ward-round-insights.pdf';
+
 export default function App() {
+  const [activeView, setActiveView] = useState<SidebarView>('patients');
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentPatientId, setCurrentPatientId] = useState(patientsData[0]?.id ?? '');
   const mainRef = useRef<HTMLDivElement>(null);
@@ -21,7 +27,7 @@ export default function App() {
         setIsScrolled(mainRef.current.scrollTop > 20);
       }
     };
-    
+
     const mainEl = mainRef.current;
     if (mainEl) {
       mainEl.addEventListener('scroll', handleScroll);
@@ -29,39 +35,49 @@ export default function App() {
     }
   }, []);
 
-  const currentPatient =
-    patientsData.find((patient) => patient.id === currentPatientId) ?? patientsData[0];
+  const currentPatient = patientsData.find((patient) => patient.id === currentPatientId) ?? patientsData[0];
 
   if (!currentPatient) {
     return null;
   }
 
+  const handleSelectPatient = (patientId: string) => {
+    setCurrentPatientId(patientId);
+    setActiveView('patients');
+  };
+
+  const handleSelectInsights = () => {
+    setActiveView('insights');
+  };
+
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
-      {/* Left Sidebar for Patient Switching */}
-      <PatientSidebar 
-        patients={patientsData} 
+    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
+      <PatientSidebar
+        patients={patientsData}
         currentPatientId={currentPatient.id}
-        onSelectPatient={setCurrentPatientId}
+        activeView={activeView}
+        onSelectInsights={handleSelectInsights}
+        onSelectPatient={handleSelectPatient}
       />
-      
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         <div ref={mainRef} className="flex-1 overflow-y-auto">
-          <GlobalHeader patient={currentPatient} isScrolled={isScrolled} />
-          
-          <main className="px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col xl:flex-row gap-8">
-              {/* Left Column - 60% */}
-              <div className="w-full xl:w-3/5 space-y-6">
-                <AIWardRound patient={currentPatient} />
+          {activeView === 'patients' ? <GlobalHeader patient={currentPatient} isScrolled={isScrolled} /> : null}
+
+          <main className="px-4 py-8 sm:px-6 lg:px-8">
+            {activeView === 'patients' ? (
+              <div className="flex flex-col gap-8 xl:flex-row">
+                <div className="w-full space-y-6 xl:w-3/5">
+                  <AIWardRound patient={currentPatient} />
+                </div>
+
+                <div className="w-full space-y-6 xl:w-2/5">
+                  <ClinicalDecision patient={currentPatient} />
+                </div>
               </div>
-              
-              {/* Right Column - 40% */}
-              <div className="w-full xl:w-2/5 space-y-6">
-                <ClinicalDecision patient={currentPatient} />
-              </div>
-            </div>
+            ) : (
+              <InsightsViewer reportSrc={insightsReportSrc} />
+            )}
           </main>
         </div>
       </div>
