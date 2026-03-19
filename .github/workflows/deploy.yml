@@ -1,0 +1,64 @@
+name: Deploy to Production Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production
+        run: npm run build
+
+      - name: Setup SSH and install rsync
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync openssh-client
+          mkdir -p ~/.ssh
+          printf '%s' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          which rsync
+          rsync --version
+
+      - name: Backup existing dist on server
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -p 22 ${SSH_USERNAME}@${SSH_HOST} "cd ${REMOTE_PATH} && if [ -d dist ]; then TIMESTAMP=\$(date +%Y%m%d_%H%M%S); mv dist dist.backup_\${TIMESTAMP}; echo \"Backed up to dist.backup_\${TIMESTAMP}\"; fi"
+
+      - name: Upload to server
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        run: |
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -p 22" dist/ ${SSH_USERNAME}@${SSH_HOST}:${REMOTE_PATH}/dist/
+
+      - name: Execute deploy script on server
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -p 22 ${SSH_USERNAME}@${SSH_HOST} "cd ${REMOTE_PATH} && bash scripts/deploy.sh"
