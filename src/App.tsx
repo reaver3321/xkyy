@@ -13,7 +13,7 @@ import { patientsData } from './data/patients';
 
 type SidebarView = 'patients' | 'insights';
 
-const insightsReportSrc = '/reports/ai-ward-round-insights.pdf';
+const insightsReportSrc = `${import.meta.env.BASE_URL}reports/ai-ward-round-insights.pdf`;
 
 export default function App() {
   const [activeView, setActiveView] = useState<SidebarView>('patients');
